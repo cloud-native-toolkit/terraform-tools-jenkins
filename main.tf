@@ -1,62 +1,97 @@
 provider "null" {
 }
 
-locals {
-  tmp_dir               = "${path.cwd}/.tmp"
-  secret_name           = "jenkins-access"
-  config_name           = "jenkins-config"
-  ingress_host          = "jenkins.${var.cluster_ingress_hostname}"
-  ingress_url           = "${var.cluster_type != "kubernetes" ? "https" : "http"}://${local.ingress_host}"
+provider "helm" {
+  version = ">= 1.1.1"
+  kubernetes {
+    config_path = var.cluster_config_file
+  }
 }
 
-resource "null_resource" "jenkins_release_iks" {
+locals {
+  tmp_dir          = "${path.cwd}/.tmp"
+  secret_name      = "jenkins-access"
+  config_name      = var.cluster_type == "kubernetes" ? "jenkins-config" : "pipeline-config"
+  values_file      = "${path.module}/jenkins-values.yaml"
+  ingress_host     = "jenkins.${var.cluster_ingress_hostname}"
+  ingress_url      = "${var.cluster_type != "kubernetes" ? "https" : "http"}://${local.ingress_host}"
+  pipeline_url     = "${var.server_url}/console/projects"
+}
+
+resource "helm_release" "jenkins_iks" {
   count = var.cluster_type == "kubernetes" ? 1 : 0
 
-  triggers = {
-    kubeconfig         = var.cluster_config_file
-    releases_namespace = var.tools_namespace
+  name         = "jenkins"
+  repository   = "https://kubernetes-charts.storage.googleapis.com/"
+  chart        = "jenkins"
+  version      = var.helm_version
+  namespace    = var.tools_namespace
+  force_update = true
+
+  values = [
+    file(local.values_file)
+  ]
+
+  set {
+    name  = "master.ingress.tls[0].secretName"
+    value = var.tls_secret_name
   }
 
-  provisioner "local-exec" {
-    command = "${path.module}/scripts/deploy-jenkins.sh ${self.triggers.releases_namespace} ${local.ingress_host} ${var.helm_version} ${var.tls_secret_name}"
-
-    environment = {
-      KUBECONFIG    = self.triggers.kubeconfig
-      STORAGE_CLASS = var.storage_class
-      TMP_DIR       = local.tmp_dir
-      EXCLUDE_POD_NAME = "deploy"
-    }
+  set {
+    name  = "master.ingress.tls[0].hosts[0]"
+    value = local.ingress_host
   }
 
+  set {
+    name = "persistence.storageClass"
+    value = var.storage_class
+  }
+}
+
+resource "helm_release" "jenkins-config_iks" {
+  depends_on = [helm_release.jenkins_iks]
+  count      = var.cluster_type == "kubernetes" ? 1 : 0
+
+  name         = "jenkins-config"
+  chart        = "${path.module}/charts/jenkins-config"
+  namespace    = var.tools_namespace
+  force_update = true
+
+  set {
+    name  = "jenkins.tls"
+    value = "false"
+  }
+
+  set {
+    name  = "jenkins.host"
+    value = local.ingress_host
+  }
+}
+
+resource "null_resource" "wait-for-job" {
+  depends_on = [helm_release.jenkins-config_iks]
+  count      = var.cluster_type == "kubernetes" ? 1 : 0
+
   provisioner "local-exec" {
-    when    = destroy
-    command = "${path.module}/scripts/destroy-jenkins.sh ${self.triggers.releases_namespace}"
+    command = "${path.module}/scripts/waitForJobCompletion.sh ${var.tools_namespace}"
 
     environment = {
-      KUBECONFIG = self.triggers.kubeconfig
+      KUBECONFIG = var.cluster_config_file
     }
   }
 }
 
-resource "null_resource" "jenkins_release_openshift" {
+resource "helm_release" "pipeline-config" {
   count = var.cluster_type != "kubernetes" ? 1 : 0
 
-  triggers = {
-    ci_namespace = var.ci_namespace
-    tools_namespace = var.tools_namespace
-  }
+  name         = "pipeline"
+  repository   = "https://ibm-garage-cloud.github.io/toolkit-charts/"
+  chart        = "tool-config"
+  namespace    = var.tools_namespace
+  force_update = true
 
-  provisioner "local-exec" {
-    command = "${path.module}/scripts/deploy-jenkins-openshift.sh ${self.triggers.ci_namespace} ${self.triggers.tools_namespace}"
-
-    environment = {
-      TMP_DIR    = local.tmp_dir
-      SERVER_URL = var.server_url
-    }
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = "${path.module}/scripts/destroy-jenkins.sh ${self.triggers.ci_namespace} ${self.triggers.tools_namespace}"
+  set {
+    name  = "url"
+    value = local.pipeline_url
   }
 }

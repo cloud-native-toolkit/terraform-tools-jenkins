@@ -11,6 +11,7 @@ variable "tools_namespace" {
 variable "ci_namespace" {
   type        = string
   description = "Name of the existing namespace where the CI deployments will be validated."
+  default     = ""
 }
 
 variable "cluster_ingress_hostname" {
@@ -44,7 +45,7 @@ variable "storage_class" {
 variable "helm_version" {
   type        = string
   description = "The version of helm chart that should be deployed"
-  default     = "1.9.21"
+  default     = "1.20.0"
 }
 
 variable "server_url" {
