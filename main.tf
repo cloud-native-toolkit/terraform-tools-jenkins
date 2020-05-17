@@ -33,6 +33,11 @@ resource "helm_release" "jenkins_iks" {
   ]
 
   set {
+    name  = "master.ingress.hostName"
+    value = local.ingress_host
+  }
+
+  set {
     name  = "master.ingress.tls[0].secretName"
     value = var.tls_secret_name
   }
@@ -59,7 +64,7 @@ resource "helm_release" "jenkins-config_iks" {
 
   set {
     name  = "jenkins.tls"
-    value = "false"
+    value = var.tls_secret_name != "" ? "true" : "false"
   }
 
   set {
