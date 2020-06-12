@@ -19,7 +19,7 @@ spec:
                 - name: jenkins-config
                   image: garagecatalyst/node11:latest
                   imagePullPolicy: IfNotPresent
-                  command: ["bash", "-c", "export NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace); npm i -g @garage-catalyst/ibm-garage-cloud-cli@0.2.14 && ~/.npm-packages/bin/igc jenkins-auth --inCluster -n ${NAMESPACE}"]
+                  command: ["bash", "-c", "export NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace); npm i -g @ibmgaragecloud/cloud-native-toolkit-cli && ~/.npm-packages/bin/igc jenkins-auth --inCluster -n ${NAMESPACE}"]
                   env:
                       - name: JENKINS_HOST
                         value: {{ .Values.jenkins.host | quote }}
