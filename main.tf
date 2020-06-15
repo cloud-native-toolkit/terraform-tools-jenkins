@@ -77,11 +77,26 @@ resource "null_resource" "wait-for-job" {
   depends_on = [helm_release.jenkins-config_iks]
   count      = var.cluster_type == "kubernetes" ? 1 : 0
 
+  triggers = {
+    kubeconfig = var.cluster_config_file
+    namespace  = var.tools_namespace
+  }
+
   provisioner "local-exec" {
-    command = "${path.module}/scripts/waitForJobCompletion.sh ${var.tools_namespace}"
+    command = "${path.module}/scripts/waitForJobCompletion.sh ${self.triggers.namespace}"
 
     environment = {
-      KUBECONFIG = var.cluster_config_file
+      KUBECONFIG = self.triggers.kubeconfig
+    }
+  }
+
+  provisioner "local-exec" {
+    when = destroy
+
+    command = "kubectl delete secret -n ${self.triggers.namespace} jenkins-access || exit 0"
+
+    environment = {
+      KUBECONFIG = self.triggers.kubeconfig
     }
   }
 }
