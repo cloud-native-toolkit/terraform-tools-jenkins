@@ -45,7 +45,7 @@ variable "storage_class" {
 variable "helm_version" {
   type        = string
   description = "The version of helm chart that should be deployed"
-  default     = "1.20.0"
+  default     = "2.0.1"
 }
 
 variable "server_url" {
