@@ -48,3 +48,13 @@ variable "vpc_cluster" {
   description = "Flag indicating that this is a vpc cluster"
   default     = false
 }
+
+variable "worker_count" {
+  type        = number
+  default     = 2
+}
+
+variable "ocp_version" {
+  type    = string
+  default = "4.6"
+}
