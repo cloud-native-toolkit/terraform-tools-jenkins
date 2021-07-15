@@ -22,7 +22,7 @@ resource "helm_release" "jenkins_iks" {
   count = var.cluster_type == "kubernetes" ? 1 : 0
 
   name         = "jenkins"
-  repository   = "https://kubernetes-charts.storage.googleapis.com/"
+  repository   = "https://charts.jenkins.io"
   chart        = "jenkins"
   version      = var.helm_version
   namespace    = var.tools_namespace
@@ -105,7 +105,7 @@ resource "helm_release" "pipeline-config" {
   count = var.cluster_type != "kubernetes" ? 1 : 0
 
   name         = "pipeline"
-  repository   = "https://ibm-garage-cloud.github.io/toolkit-charts/"
+  repository   = "https://charts.cloudnativetoolkit.dev"
   chart        = "tool-config"
   namespace    = var.tools_namespace
   force_update = true
